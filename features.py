@@ -15,8 +15,8 @@ from utils.user import User
 from utils.map import Map
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-n", "--n", required=True,
-                    help="arquivo")
+parser.add_argument("-f", "--folder", required=True,
+                    help="nome pasta com arquivos da base de dados(será acessado a partir da referência ROOT_PATH setada no arquivo de constantes)")
 args = parser.parse_args()
 
 resnet = InceptionResnetV1(pretrained='vggface2').eval()
@@ -39,18 +39,16 @@ def collect_dataset_features(dataset_folder_name: str):
     dataset_dir = constants.ROOT_DATASET_FOLDER / dataset_folder_name
     users = listdir(str(dataset_dir))
 
-    map = Map()
+    map = Map(dataset_dir)
 
     for idu, username in enumerate(users):
         
         user = User(name=username, dir=dataset_dir / username)
 
         images_paths = listdir(str(user.dir))
-
-        map[username] = []
-
         for image_path in images_paths:
-            image = cv.imread(image_path)
+            print(image_path)
+            image = cv.imread(str(image_path))
             feature_vector = extract_facenet_feature(image, 'last_bn_norm')
             feature = Feature(
                 feature_vector=feature_vector, path=image_path,
@@ -58,7 +56,11 @@ def collect_dataset_features(dataset_folder_name: str):
             )
             user.add_feature(feature)
 
+        map.add_user(user)
+    print(map)
+    return map
     
 
 if __name__ == '__main__':
-    pass
+    print(args.folder)
+    collect_dataset_features(args.folder)
