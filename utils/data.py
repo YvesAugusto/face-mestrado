@@ -1,4 +1,9 @@
 from pathlib import Path
+import pickle
+
+def save_pickle(path, name, object):
+    with open(str(path) + "/" + str(name) + ".pickle", "wb") as f:
+        pickle.dump(object, f)
 
 def listdir(dir_name: str):
     return [path for path in Path(dir_name).iterdir() if path.is_dir]
