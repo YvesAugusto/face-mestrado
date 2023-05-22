@@ -7,7 +7,7 @@ import constants
 from utils.data import listdir, save_pickle
 from utils.facenet import load_facenet
 from utils.feature import Feature
-from utils.map import Map
+from utils.map import Map, TestMap
 from utils.user import User
 
 facenet_model = load_facenet()
@@ -29,11 +29,15 @@ def collect_dataset_features(dataset_folder_name: str):
     dataset_dir = constants.ROOT_DATASET_FOLDER / dataset_folder_name
     users = listdir(str(dataset_dir))
 
+    test = dataset_folder_name.split("-")[0] == "test"
     map = Map(dataset_dir)
+    if test:
+        map = TestMap(dataset_dir)
+    
     p = 0
     for idu, username in enumerate(users):
         p+=1
-        user = User(name=username, dir=dataset_dir / username)
+        user = User(name=str(username).split("/")[-1], dir=dataset_dir / username)
 
         images_paths = listdir(str(user.dir))
         for image_path in images_paths:

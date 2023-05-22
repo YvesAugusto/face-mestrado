@@ -1,6 +1,12 @@
 from pathlib import Path
 import pickle
 
+def load_pickle(path: Path):
+    with open(str(path), "rb") as f:
+        file = pickle.load(f)
+
+    return file
+
 def save_pickle(path, name, object):
     with open(str(path) + "/" + str(name) + ".pickle", "wb") as f:
         pickle.dump(object, f)
