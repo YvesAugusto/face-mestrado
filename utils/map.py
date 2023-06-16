@@ -124,6 +124,10 @@ class Map:
             self.compute_user_positive_histograms(user, histogrammer)
             self.compute_user_negative_histograms(user, histogrammer, proportion)
 
+    def reset_histograms(self):
+        for user in self.users:
+            user.reset()
+
 
 class TestMap(Map):
 

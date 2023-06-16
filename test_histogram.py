@@ -8,9 +8,11 @@ from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.tree import DecisionTreeClassifier
 
+from utils.optimizer import RFOptimizer
 from utils.data import load_pickle
 from utils.histogram import Histogrammer, Interval
 from utils.map import Map, TestMap
+from utils.tools import find_best_parameters_random_forest
 
 BASE_PATH = Path(pathlib.Path(__file__).parent.resolve()) / "features"
 parser = argparse.ArgumentParser()
@@ -29,30 +31,27 @@ intervals = [
 for interval in intervals:
     histogrammer.add_interval(interval)
 
-if __name__ == '__main__':
-
+def read_files(args):
     filepath: Path = BASE_PATH / args.file
+    number = filepath.parts[-1].split(".")[0].split("-")[-1]
+
     train_map: Map = load_pickle(filepath)
 
-    train_map.compute_histograms(histogrammer, 2)
-    train_map.compute_dataframe(histogrammer)
-    
-    X = train_map.min_max_scaler.transform(train_map.df.drop('target', axis=1))
-    Y = train_map.df['target']
-
-    clf = RandomForestClassifier()
-    clf.fit(X, Y)
-
-    test_filepath = Path('/' + '/'.join(filepath.parts[1:-1])) / "test-0.pickle"
-
+    test_filepath = Path('/' + '/'.join(filepath.parts[1:-1])) / "test-{}.pickle".format(number)
     test_map: TestMap = load_pickle(test_filepath)
 
-    test_map.compute_histograms(histogrammer, 2)
-    test_map.compute_dataframe(histogrammer)
+    return (train_map, filepath), (test_map, test_filepath)
 
-    X_test = train_map.min_max_scaler.transform(test_map.df.drop(['target', 'user'], axis=1))
-    Y_test = test_map.df['target']
-    users = test_map.df['user']
+def make_train_dataframe(train_map: Map):
+
+    train_map.reset_histograms()
+    train_map.compute_histograms(histogrammer, 2)
+    train_map.compute_dataframe(histogrammer)
+
+def preprocess(map_scaler, map, drop=['target']):
+    return map_scaler.min_max_scaler.transform(map.df.drop(drop, axis=1)), map.df['target']
+
+def test(test_map, X_test):
 
     y_pred = clf.predict(X_test)
     df = test_map.df.copy()
@@ -66,4 +65,40 @@ if __name__ == '__main__':
         result["fn"].append(groups[user][1.0])
 
     result_df = pd.DataFrame(result)
-    print()
+
+    return result_df
+
+if __name__ == '__main__':
+
+    optimizer = RFOptimizer()
+    (train_map, filepath), (test_map, test_filepath) = read_files(args)
+
+    make_train_dataframe(train_map)
+    test_map.compute_dataframe(histogrammer)
+    X, Y = preprocess(train_map, train_map, ['target'])
+    # find_best_parameters_random_forest(X, Y)
+    optimizer.find_best_params(X, Y)
+
+    fn_ = []
+    fp_ =[]
+    test_map.compute_dataframe(histogrammer)
+    for _ in range(10):
+        make_train_dataframe(train_map)
+        X, Y = preprocess(train_map, train_map, drop=['target'])
+        X_test, Y_test = preprocess(train_map, test_map, drop=['target', 'user'])
+
+        clf = RandomForestClassifier(
+            # max_depth=30, min_samples_leaf=5, min_samples_split=6,
+            # n_estimators=20
+        )
+        clf.fit(X, Y)
+
+        results = test(test_map, X_test)
+        fn, fp = results["fn"].mean() * 100, results["fp"].mean() * 100
+        fn_.append(fn)
+        fp_.append(fp)
+
+        print("False Positive: {}, False Negative: {}".format(fp, fn))
+
+    print("Mean False Positive: {}, Mean False Negative: {}".format(np.mean(fp_), np.mean(fn_)))
+        
