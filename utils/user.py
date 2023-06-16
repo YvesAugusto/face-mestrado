@@ -19,6 +19,10 @@ class User:
     def add_feature(self, feature: Feature):
         self.features.append(feature)
 
+    def reset(self):
+        self.positive_histograms = []
+        self.negative_histograms = []
+
     def add_positive_histogram(self, histogram: Histogram):
         self.positive_histograms.append(histogram)
 
